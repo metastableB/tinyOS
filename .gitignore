@@ -1,4 +1,3 @@
-*.out
-*.o
+./src/utils/*.o
 *.zip
-*.tar.gz
+*.o

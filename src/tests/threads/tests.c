@@ -1,5 +1,5 @@
 #include "tests/threads/tests.h"
-#include "../examples/hello.c"
+#include "../examples/2cs17.c"
 #include <debug.h>
 #include <string.h>
 #include <stdio.h>

@@ -15,6 +15,8 @@
 #include "userprog/process.h"
 #endif
 
+#include "threads/priority_scheduler.h"
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -272,7 +274,6 @@ thread_current (void)
      recursion can cause stack overflow. */
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
-
   return t;
 }
 
@@ -313,7 +314,6 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
@@ -490,13 +490,18 @@ alloc_frame (struct thread *t, size_t size)
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
    idle_thread. */
+
 static struct thread *
 next_thread_to_run (void) 
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else {
+  	// originally implemented by list_pop_front();
+  	int * aux;
+  	struct thread* max = list_entry (list_max_remove (&ready_list,priority_scheduler_comp,aux), struct thread, elem);
+    return max;
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -562,7 +567,6 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);

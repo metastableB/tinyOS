@@ -8,6 +8,8 @@ priority_scheduler_comp(const struct list_elem *a, const struct list_elem *b, vo
 	int * temp = (int*) aux;
 	struct thread* A = list_entry (a, struct thread, elem);
     struct thread* B = list_entry (b, struct thread, elem);
+    ASSERT(A->status == THREAD_READY);
+	ASSERT(B->status == THREAD_READY);
     return (A->priority < B->priority);
 }
 

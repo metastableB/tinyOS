@@ -15,7 +15,7 @@
 #include "userprog/process.h"
 #endif
 
-#include "threads/priority_scheduler.h"
+#include "threads/comparators.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top

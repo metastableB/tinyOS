@@ -1,4 +1,4 @@
-#include "priority_scheduler.h"
+#include "comparators.h"
 /*
  * Comparator object for priority scheduler. The aux is not implemented.
  */

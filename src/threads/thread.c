@@ -499,8 +499,7 @@ next_thread_to_run (void)
   else {
   	// originally implemented by list_pop_front();
   	int * aux;
-  	struct thread* max = list_entry (list_max_remove (&ready_list,priority_scheduler_comp,aux), struct thread, elem);
-    return max;
+  	return list_entry (list_max_remove (&ready_list,priority_scheduler_comp,aux), struct thread, elem);
   }
 }
 

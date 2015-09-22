@@ -30,6 +30,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of all sleeping threads. Added to this thread when timer_sleep() called 
+and removed when rescheduled on timer interrupt */
+static struct list sleeping_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -94,6 +98,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&sleeping_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -588,3 +593,49 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* 
+ * Adds the current thread to sleep queue. Interrupts should be off.
+ */
+void
+thread_sleep (void) 
+{
+  int * aux = NULL;
+  struct thread* curr = thread_current();
+  if(curr == idle_thread)
+    return;
+
+  ASSERT (!intr_context ());
+  ASSERT (intr_get_level () == INTR_OFF);
+  
+  if(list_empty(&sleeping_list))
+    list_push_back(&sleeping_list, &curr->sleep_elem);
+  else
+    list_insert_ordered (&sleeping_list, &curr->sleep_elem,
+                          list_less_sleeping, aux);
+}
+
+void 
+thread_wakeup(void)
+{
+  ASSERT(intr_get_level() == INTR_OFF);
+  if(list_empty(&sleeping_list))
+    return;
+  int64_t curr_ticks = timer_ticks();
+  struct list_elem *e, *e2;
+  for (e = list_begin (&sleeping_list); e != list_end (&sleeping_list);)
+  {
+    struct thread* t = list_entry(e, struct thread, sleep_elem);
+    ASSERT(t->status == THREAD_BLOCKED);
+    if(t->sleep_till <= curr_ticks)
+    {
+      e2 = list_next(e);
+      list_remove(e);
+      thread_unblock(t);
+      //printf("Waking up %d with priority %d\n",t->tid,t->priority);
+      e = e2;
+    } else
+        break;
+  }
+}
+

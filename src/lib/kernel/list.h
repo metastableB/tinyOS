@@ -177,5 +177,7 @@ void list_unique (struct list *, struct list *duplicates,
 /* Max and min. */
 struct list_elem *list_max (struct list *, list_less_func *, void *aux);
 struct list_elem *list_min (struct list *, list_less_func *, void *aux);
+/* Max and min. with removal from the list */
+struct list_elem *list_max_remove (struct list *, list_less_func *, void *aux);
 
 #endif /* lib/kernel/list.h */

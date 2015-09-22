@@ -15,6 +15,8 @@
 #include "userprog/process.h"
 #endif
 
+#include "threads/comparators.h"
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -27,6 +29,10 @@ static struct list ready_list;
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
+
+/* List of all sleeping threads. Added to this thread when timer_sleep() called 
+and removed when rescheduled on timer interrupt */
+static struct list sleeping_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -92,6 +98,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  list_init (&sleeping_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -272,7 +279,6 @@ thread_current (void)
      recursion can cause stack overflow. */
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
-
   return t;
 }
 
@@ -313,7 +319,6 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
@@ -490,13 +495,17 @@ alloc_frame (struct thread *t, size_t size)
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
    idle_thread. */
+
 static struct thread *
 next_thread_to_run (void) 
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else {
+  	// originally implemented by list_pop_front();
+  	int * aux;
+  	return list_entry (list_max_remove (&ready_list,priority_scheduler_comp,aux), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -562,7 +571,6 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
@@ -585,3 +593,49 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* 
+ * Adds the current thread to sleep queue. Interrupts should be off.
+ */
+void
+thread_sleep (void) 
+{
+  int * aux = NULL;
+  struct thread* curr = thread_current();
+  if(curr == idle_thread)
+    return;
+
+  ASSERT (!intr_context ());
+  ASSERT (intr_get_level () == INTR_OFF);
+  
+  if(list_empty(&sleeping_list))
+    list_push_back(&sleeping_list, &curr->sleep_elem);
+  else
+    list_insert_ordered (&sleeping_list, &curr->sleep_elem,
+                          list_less_sleeping, aux);
+}
+
+void 
+thread_wakeup(void)
+{
+  ASSERT(intr_get_level() == INTR_OFF);
+  if(list_empty(&sleeping_list))
+    return;
+  int64_t curr_ticks = timer_ticks();
+  struct list_elem *e, *e2;
+  for (e = list_begin (&sleeping_list); e != list_end (&sleeping_list);)
+  {
+    struct thread* t = list_entry(e, struct thread, sleep_elem);
+    ASSERT(t->status == THREAD_BLOCKED);
+    if(t->sleep_till <= curr_ticks)
+    {
+      e2 = list_next(e);
+      list_remove(e);
+      thread_unblock(t);
+      //printf("Waking up %d with priority %d\n",t->tid,t->priority);
+      e = e2;
+    } else
+        break;
+  }
+}
+

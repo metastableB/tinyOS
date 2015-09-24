@@ -1,0 +1,77 @@
+WORKING:
+
+The timer interrupt from the external interrupt context 
+associated to a function named timer_interrupt. This link is 
+made in timer_init();
+
+In the clean setup the timer_interrupt increments the timer_tick 
+variable to account for the total time that has elapsed since we
+started running.
+
+timer_tick : The timer interrupts TIMER_FREQ times per second which 
+	is default at 100. That is we have an interrupt every 0.01 seconds.
+loops_per_tick : gives a rough estimate of the loops that runs within a tick.
+	This value is calculated upon boot. It is in the range of 
+	419 020 800 loops/sec
+
+Now at each external timer interrupt, the timer_interrupt function
+is called which eventually calls the thread_tick() function. 
+
+(QUESTION: How are the context and control switch happening at the timer interrupt ?)
+
+Depending on the type of thread currently running, the thread_tick() 
+increments the statistics variables and checks if the number of ticks
+this thread has exceeded the time slice. If yes, yield using
+intr_yield_on_return() defined in interrupt.c
+
+Function: void intr_yield_on_return (void)
+When called in an interrupt context, causes thread_yield() to be called just before the interrupt returns. Used in the timer interrupt handler when a thread's time slice expires, to cause a new thread to be scheduled.
+
+intr_disable() does not disable internal interrupts.
+
+
+Conclusion : 
+	- Even with just the stand alone installation, threads are scheduled based on 
+	a time slice. After each time slice expires, the thread running yields the CPU.
+
+
+
+QUESTION: How does a blocked thread get scheduled. What happens in a blocked thread. 
+	- Try printing the elements in the thread list.
+
+####################################
+## Explanation for alarm multiple ###
+####################################
+The following is regarding a clean install and how the example program alarm-multiple
+defined in alarm-wait runs. The factors involved here are two folds,
+1) the timer interrupt 
+2) the thread_yield() called by each timer_sleep()
+
+The work flow will be explained shortly but before that remember that our system
+has a time sharing quanta of 4 ticks and after each 4 tick interval, intr_yield_return
+is called which in effect calls thread_yeild to schedule the next process in the ready queue.
+
+Thread yield() works instantaneously in the sense that it does not wait for the next timer interrupt
+or time slice boundary for the yield to take effect.
+
+Now, after startup we load the current thread as the main thread. An alternate thread called idle thread is created. 
+The idle thread is not scheduled and not added to the ready list. It is only returned by the
+next_thread_to_run() upon the ready_list being empty.
+
+The main thread is scheduled and added to the ready queue along with any new threads
+created.
+
+Now we are running in the main thread when alarm-wait is run. In alarm wait we create 5 new threads
+using the thread_create() function. Remember that we are still running in main.
+thread_create() creates thread in BLOCKED state but in the end calls thread_unblock() to unblock it.
+
+There fore at the end of the thread creating process we have 5 threads and main thread in the ready queue.
+Now the main thread reaches the timer_sleep() call and it hits the thread_yield() function , immediately 
+surrendering the CPU to the scheduler function which schedules the next thread. 
+QUESTION : Somehow the scheduler is not part of the main thread . Maybe its like an interrupt handler.
+Find out about this design choice.
+
+Anyway , all the threads are scheduled in a round robin fashion. All of them are trapped within the loop 
+inside timer_sleep and yield the CPU till the necessary number of timer TICKS have not been reached.
+Further we are printing thhe state of the ready queue at each timer tick. This output in conjunction with
+an output within the timer_sleep() function inside the while loop can help analyse the program better.

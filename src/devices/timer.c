@@ -170,13 +170,24 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
-/* Timer interrupt handler. */
+/* Timer interrupt handler. 
+ * Look at timer_init above, this function is called
+ * at each interrupt. 
+ * All this did initially was to increment ticks and 
+ * call thread_tick().
+ *
+ * thread_tick() updates the ticks statistics and 
+ * then checks if the kernel thread
+ * has run for more time than it should. If yes it yields
+ * the CPU. 
+ */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  /* interrupt disabled here. Check if a blocked thread can be woken now */
+  /* interrupt disabled here. Check if a blocked 
+  thread can be woken now */
   thread_wakeup();
 }
 

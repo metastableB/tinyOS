@@ -1,4 +1,6 @@
-WORKING:
+####################################################
+Timer interrupt handling, External Interrupt Context
+####################################################
 
 The timer interrupt from the external interrupt context 
 associated to a function named timer_interrupt. This link is 
@@ -38,6 +40,30 @@ Conclusion :
 
 QUESTION: How does a blocked thread get scheduled. What happens in a blocked thread. 
 	- Try printing the elements in the thread list.
+
+Ans : A blocked thread has to be unblocked some how. How this is done depends on why the 
+thread is blocked in the first place. This can be better understood in the context of
+busy waiting as explained in the next question
+
+QUESTION: Examine how the original implementation had busy waiting. How did it work ?
+	What happened after we implemented the sleeping queue?
+Ans : In the original alarm-multiple example. Each of the sleeping thread was scheduled on after
+the other in a round robin fashion occupying the CPU. Consider the case where there is a
+non sleeping process in between. Each time this process consumes its ticks, it is pushed to 
+the back of a queue, and waits for all the scheduled processes to yield its CPU before
+it can regain the CPU.
+
+In the sleeping queue, we eliminated the sleeping threads from the ready queue by blocking them
+and adding them to a separate queue. Then we check if they are ready to be woken at each 
+external timer interrupt and wake them up - add to ready queue if the time is right.
+
+In the original mechanism, 
+	- one time slice was given to a thread. 
+	- in the next slice all other threads execute and yield.
+	- only a part of the time slice is received by the non-waiting process
+	- this part decreases as the number of waiting processes increase.
+
+In the new mechanism the entire time slice is given to the thread. (I guess. Not sure!)
 
 ####################################
 ## Explanation for alarm multiple ###
